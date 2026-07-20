@@ -40,6 +40,7 @@ type DingTalkTextPayload = {
 
 type DingTalkPayload = DingTalkMarkdownPayload | DingTalkTextPayload;
 
+const DINGTALK_BRAND = "Renewlet";
 const textEncoder = new TextEncoder();
 
 export async function sendDingTalk(settings: ApiAppSettings, message: NotificationEmailMessage, locale: AppLocale): Promise<void> {
@@ -68,28 +69,62 @@ export async function signedDingTalkWebhookUrl(endpoint: URL | string, secret: s
 }
 
 function dingTalkPayload(settings: ApiAppSettings, message: NotificationEmailMessage): DingTalkPayload {
-  const content = dingTalkMessageContent(message, settings.dingtalkKeyword);
+  const rendered = renderDingTalkNotification(settings, message);
   if (settings.dingtalkMessageType === "text") {
     return {
       msgtype: "text",
-      text: { content },
+      text: { content: rendered.content },
     };
   }
   return {
     msgtype: "markdown",
     markdown: {
-      title: message.title,
-      text: content,
+      title: rendered.title,
+      text: rendered.content,
     },
   };
 }
 
-function dingTalkMessageContent(message: NotificationEmailMessage, keyword: string): string {
-  let content = `${message.title}\n\n${message.content}\n\n${message.timestamp}`;
-  if (!content.includes("Renewlet")) content = `Renewlet\n\n${content}`;
+function renderDingTalkNotification(settings: ApiAppSettings, message: NotificationEmailMessage): { title: string; content: string } {
+  const title = settings.dingtalkTitleTemplate.trim()
+    ? renderDingTalkTemplate(settings.dingtalkTitleTemplate, message, settings.dingtalkKeyword).trim() || message.title
+    : message.title;
+  const defaultContent = defaultDingTalkContent(message);
+  const content = settings.dingtalkContentTemplate.trim()
+    ? renderDingTalkTemplate(settings.dingtalkContentTemplate, message, settings.dingtalkKeyword).trim() || defaultContent
+    : defaultContent;
+  return {
+    title,
+    content: ensureDingTalkContentMarkers(content, settings.dingtalkKeyword),
+  };
+}
+
+function renderDingTalkTemplate(template: string, message: NotificationEmailMessage, keyword: string): string {
+  // 钉钉模板只改官方 payload 的文本字段；raw JSON body 会绕开 msgtype/errcode 约束并重现交付误判。
+  const replacements: Record<string, string> = {
+    "{brand}": DINGTALK_BRAND,
+    "{keyword}": keyword.trim(),
+    "{title}": message.title,
+    "{content}": message.content,
+    "{timestamp}": message.timestamp,
+    "{itemCount}": String(message.items.length),
+  };
+  return template.replace(/\{brand\}|\{keyword\}|\{title\}|\{content\}|\{timestamp\}|\{itemCount\}/g, (token) => replacements[token] ?? token);
+}
+
+function defaultDingTalkContent(message: NotificationEmailMessage): string {
+  return `${message.title}\n\n${message.content}\n\n${message.timestamp}`;
+}
+
+function ensureDingTalkContentMarkers(content: string, keyword: string): string {
+  const markers: string[] = [];
+  // 钉钉关键词校验只看可见正文，不能藏在 title 或不可见字符里；缺失标记放末尾，避免抢走通知第一屏。
+  if (!content.includes(DINGTALK_BRAND)) markers.push(DINGTALK_BRAND);
   const trimmedKeyword = keyword.trim();
-  if (trimmedKeyword && !content.includes(trimmedKeyword)) content = `${trimmedKeyword}\n\n${content}`;
-  return content;
+  if (trimmedKeyword && !content.includes(trimmedKeyword) && !markers.includes(trimmedKeyword)) markers.push(trimmedKeyword);
+  if (markers.length === 0) return content;
+  const trimmedContent = content.trimEnd();
+  return trimmedContent ? `${trimmedContent}\n\n${markers.join(" · ")}` : markers.join(" · ");
 }
 
 async function requireDingTalkSuccess(response: Response, locale: AppLocale, secrets: readonly string[]): Promise<void> {

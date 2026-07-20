@@ -78,6 +78,8 @@ export const EXTERNAL_INTEGRATION_SETTING_KEYS = new Set<keyof AppSettings>([
   "dingtalkSecret",
   "dingtalkKeyword",
   "dingtalkMessageType",
+  "dingtalkTitleTemplate",
+  "dingtalkContentTemplate",
   "wechatWebhookUrl",
   "wechatMessageType",
   "wechatAddModeTag",

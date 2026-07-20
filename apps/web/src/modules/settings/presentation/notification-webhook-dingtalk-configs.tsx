@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { BookOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -108,6 +111,33 @@ export function NotificationDingTalkConfigPanel({
   testButton,
 }: NotificationProtocolConfigProps) {
   const { t } = useI18n();
+  const [templateExamplesOpen, setTemplateExamplesOpen] = useState(false);
+  const templateExamples = [
+    {
+      id: 'default',
+      name: t("settings.dingtalkTemplateExampleDefault"),
+      title: t("settings.dingtalkTemplateExampleDefaultTitle"),
+      content: t("settings.dingtalkTemplateExampleDefaultContent"),
+    },
+    {
+      id: 'keyword',
+      name: t("settings.dingtalkTemplateExampleKeyword"),
+      title: t("settings.dingtalkTemplateExampleKeywordTitle"),
+      content: t("settings.dingtalkTemplateExampleKeywordContent"),
+    },
+    {
+      id: 'count',
+      name: t("settings.dingtalkTemplateExampleCount"),
+      title: t("settings.dingtalkTemplateExampleCountTitle"),
+      content: t("settings.dingtalkTemplateExampleCountContent"),
+    },
+  ] as const;
+
+  const applyTemplateExample = (title: string, content: string) => {
+    updateSetting('dingtalkTitleTemplate', title);
+    updateSetting('dingtalkContentTemplate', content);
+    setTemplateExamplesOpen(false);
+  };
 
   return (
     <>
@@ -148,18 +178,92 @@ export function NotificationDingTalkConfigPanel({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="dingtalkKeyword">{t("settings.dingtalkKeyword")}</Label>
+            <Label htmlFor="dingtalkTitleTemplate">{t("settings.dingtalkTitleTemplate")}</Label>
             <Input
-              id="dingtalkKeyword"
+              id="dingtalkTitleTemplate"
               autoCapitalize="none"
               spellCheck={false}
-              placeholder="Renewlet"
-              value={settings.dingtalkKeyword}
+              placeholder={t("settings.dingtalkTitleTemplatePlaceholder")}
+              value={settings.dingtalkTitleTemplate}
               disabled={disabled}
-              onChange={(e) => updateSetting('dingtalkKeyword', e.target.value)}
+              onChange={(e) => updateSetting('dingtalkTitleTemplate', e.target.value)}
               className="border-border bg-secondary"
             />
           </div>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="dingtalkContentTemplate">{t("settings.dingtalkContentTemplate")}</Label>
+          <Textarea
+            id="dingtalkContentTemplate"
+            placeholder={t("settings.dingtalkContentTemplatePlaceholder")}
+            value={settings.dingtalkContentTemplate}
+            disabled={disabled}
+            onChange={(e) => updateSetting('dingtalkContentTemplate', e.target.value)}
+            className="min-h-[120px] border-border bg-secondary font-mono text-sm"
+          />
+          <p className="text-xs text-muted-foreground">{t("settings.dingtalkTemplateHelp")}</p>
+          <Popover open={templateExamplesOpen} onOpenChange={setTemplateExamplesOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={disabled}
+                className="h-8 w-fit gap-1.5 border-border px-2.5 text-xs"
+              >
+                <BookOpen aria-hidden="true" className="h-4 w-4" />
+                {t("settings.dingtalkTemplateExamplesOpen")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              sideOffset={6}
+              mobileTitle={t("settings.dingtalkTemplateExamples")}
+              mobileDescription={t("settings.dingtalkTemplateExamplesDescription")}
+              mobileCloseLabel={t("common.close")}
+              mobilePresentation="sheet"
+              className="flex max-h-[min(calc(var(--app-viewport-height)-1rem),var(--radix-popover-content-available-height,28rem))] w-[min(calc(100vw-2rem),24rem)] flex-col rounded-xl border-border bg-card p-0 shadow-xl"
+            >
+              <div className="hidden shrink-0 border-b border-border px-3 py-3 md:block">
+                <p className="text-sm font-semibold text-foreground">{t("settings.dingtalkTemplateExamples")}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {t("settings.dingtalkTemplateExamplesDescription")}
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+                {templateExamples.map((example) => (
+                  <button
+                    key={example.id}
+                    type="button"
+                    disabled={disabled}
+                    aria-label={t("settings.dingtalkTemplateExampleApplyNamed", { name: example.name })}
+                    onClick={() => applyTemplateExample(example.title, example.content)}
+                    className="grid w-full min-w-0 gap-1 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className="text-sm font-medium text-foreground">{example.name}</span>
+                    <span className="grid min-w-0 gap-0.5 font-mono text-[11px] leading-4 text-muted-foreground">
+                      <span className="min-w-0 truncate">{example.title}</span>
+                      <span className="line-clamp-2 min-w-0 whitespace-pre-wrap break-words">{example.content}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="dingtalkKeyword">{t("settings.dingtalkKeyword")}</Label>
+          <Input
+            id="dingtalkKeyword"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder={t("settings.dingtalkKeywordPlaceholder")}
+            value={settings.dingtalkKeyword}
+            disabled={disabled}
+            onChange={(e) => updateSetting('dingtalkKeyword', e.target.value)}
+            className="border-border bg-secondary"
+          />
+          <p className="text-xs text-muted-foreground">{t("settings.dingtalkKeywordHelp")}</p>
         </div>
         <div className="grid gap-2">
           <Label htmlFor="dingtalkSecret">{t("settings.dingtalkSecret")}</Label>
@@ -176,7 +280,6 @@ export function NotificationDingTalkConfigPanel({
           />
           <p className="text-xs text-muted-foreground">{t("settings.dingtalkSecretHelp")}</p>
         </div>
-        <p className="text-xs leading-5 text-muted-foreground">{t("settings.dingtalkSecurityHelp")}</p>
       </div>
       <div className="mt-4 flex justify-end">
         {testButton}

@@ -13,6 +13,8 @@ describe("sanitizeSettingsForExport", () => {
       dingtalkWebhookUrl: "https://oapi.dingtalk.com/robot/send?access_token=ding-token",
       dingtalkSecret: "SECsecret",
       dingtalkKeyword: "自定义关键词",
+      dingtalkTitleTemplate: "自定义标题",
+      dingtalkContentTemplate: "自定义正文",
     };
 
     const sanitized = sanitizeSettingsForExport(settings, false);
@@ -23,9 +25,13 @@ describe("sanitizeSettingsForExport", () => {
     expect(sanitized).not.toHaveProperty("dingtalkWebhookUrl");
     expect(sanitized).not.toHaveProperty("dingtalkSecret");
     expect(sanitized).not.toHaveProperty("dingtalkKeyword");
+    expect(sanitized).not.toHaveProperty("dingtalkTitleTemplate");
+    expect(sanitized).not.toHaveProperty("dingtalkContentTemplate");
     expect(JSON.stringify(sanitized)).not.toContain("push-token");
     expect(JSON.stringify(sanitized)).not.toContain("ding-token");
     expect(JSON.stringify(sanitized)).not.toContain("SECsecret");
+    expect(JSON.stringify(sanitized)).not.toContain("自定义标题");
+    expect(JSON.stringify(sanitized)).not.toContain("自定义正文");
 
     const withSecrets = sanitizeSettingsForExport(settings, true);
     expect(withSecrets.discordWebhookUrl).toBe("https://discord.com/api/webhooks/123/secret");
@@ -35,5 +41,7 @@ describe("sanitizeSettingsForExport", () => {
     expect(withSecrets.dingtalkWebhookUrl).toBe("https://oapi.dingtalk.com/robot/send?access_token=ding-token");
     expect(withSecrets.dingtalkSecret).toBe("SECsecret");
     expect(withSecrets.dingtalkKeyword).toBe("自定义关键词");
+    expect(withSecrets.dingtalkTitleTemplate).toBe("自定义标题");
+    expect(withSecrets.dingtalkContentTemplate).toBe("自定义正文");
   });
 });

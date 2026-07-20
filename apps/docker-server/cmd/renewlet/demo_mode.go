@@ -41,6 +41,8 @@ type demoProtectedSettingsSnapshot struct {
 	DingTalkSecret          string
 	DingTalkKeyword         string
 	DingTalkMessageType     string
+	DingTalkTitleTemplate   string
+	DingTalkContentTemplate string
 	WechatWebhookURL        string
 	WechatMessageType       string
 	WechatAddModeTag        bool
@@ -379,6 +381,8 @@ func demoProtectedSettingsSnapshotFrom(settings appSettings) demoProtectedSettin
 		DingTalkSecret:          strings.TrimSpace(settings.DingTalkSecret),
 		DingTalkKeyword:         strings.TrimSpace(settings.DingTalkKeyword),
 		DingTalkMessageType:     strings.TrimSpace(settings.DingTalkMessageType),
+		DingTalkTitleTemplate:   strings.TrimSpace(settings.DingTalkTitleTemplate),
+		DingTalkContentTemplate: strings.TrimSpace(settings.DingTalkContentTemplate),
 		WechatWebhookURL:        strings.TrimSpace(settings.WechatWebhookURL),
 		WechatMessageType:       strings.TrimSpace(settings.WechatMessageType),
 		WechatAddModeTag:        settings.WechatAddModeTag,

@@ -6,11 +6,15 @@ describe("settings service normalization", () => {
     const settings = normalizeSettings({
       telegramMessageFormat: "markdown",
       dingtalkMessageType: "actionCard",
+      dingtalkTitleTemplate: "x".repeat(501),
+      dingtalkContentTemplate: 42,
       monthlyBudget: 2333,
     });
 
     expect(settings.telegramMessageFormat).toBe("plain");
     expect(settings.dingtalkMessageType).toBe("markdown");
+    expect(settings.dingtalkTitleTemplate).toBe("");
+    expect(settings.dingtalkContentTemplate).toBe("");
     expect(settings.monthlyBudget).toBe(2333);
   });
 });

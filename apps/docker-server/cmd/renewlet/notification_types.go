@@ -28,11 +28,13 @@ const (
 	defaultNotificationReminderDays = 3
 	maxReminderDays                 = 3650
 	// 默认 plain 表示不发送 Telegram parse_mode；HTML 只能通过 formatter 固定模板输出。
-	telegramMessageFormatPlain  = "plain"
-	telegramMessageFormatHTML   = "html"
-	dingtalkMessageTypeMarkdown = "markdown"
-	dingtalkMessageTypeText     = "text"
-	discordContentMaxRunes      = 2000
+	telegramMessageFormatPlain      = "plain"
+	telegramMessageFormatHTML       = "html"
+	dingtalkMessageTypeMarkdown     = "markdown"
+	dingtalkMessageTypeText         = "text"
+	dingtalkTitleTemplateMaxRunes   = 500
+	dingtalkContentTemplateMaxRunes = 20000
+	discordContentMaxRunes          = 2000
 )
 
 var (
@@ -83,6 +85,8 @@ type appSettings struct {
 	DingTalkSecret           string                    `json:"dingtalkSecret"`
 	DingTalkKeyword          string                    `json:"dingtalkKeyword"`
 	DingTalkMessageType      string                    `json:"dingtalkMessageType"`
+	DingTalkTitleTemplate    string                    `json:"dingtalkTitleTemplate"`
+	DingTalkContentTemplate  string                    `json:"dingtalkContentTemplate"`
 	WechatWebhookURL         string                    `json:"wechatWebhookUrl"`
 	WechatMessageType        string                    `json:"wechatMessageType"`
 	WechatAddModeTag         bool                      `json:"wechatAddModeTag"`
@@ -475,6 +479,8 @@ func defaultAppSettings() appSettings {
 		TelegramMessageFormat:    telegramMessageFormatPlain,
 		WebhookMethod:            "POST",
 		DingTalkMessageType:      dingtalkMessageTypeMarkdown,
+		DingTalkTitleTemplate:    "",
+		DingTalkContentTemplate:  "",
 		WechatMessageType:        "text",
 		BarkServerURL:            "https://api.day.app",
 		DiscordWebhookURL:        "",

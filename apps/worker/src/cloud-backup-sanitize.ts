@@ -11,6 +11,8 @@ const SECRET_SETTING_KEYS: Array<keyof ApiAppSettings> = [
   "dingtalkWebhookUrl",
   "dingtalkSecret",
   "dingtalkKeyword",
+  "dingtalkTitleTemplate",
+  "dingtalkContentTemplate",
   "wechatWebhookUrl",
   "wechatAtPhones",
   "smtpHost",

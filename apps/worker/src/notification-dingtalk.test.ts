@@ -89,6 +89,59 @@ describe("Cloudflare DingTalk notification sender", () => {
       title: "Renewlet",
       text: expect.stringContaining("GitHub"),
     });
+    expect(payload["markdown"]).toMatchObject({
+      text: "Renewlet\n\n即将到期：\n- GitHub：2026-08-01\n\n2026-07-20 08:00 CST",
+    });
+  });
+
+  it("appends lowercase brand keyword as a footer marker instead of prepending it", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(`{"errcode":0,"errmsg":"ok"}`, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendDingTalk(settings({
+      dingtalkWebhookUrl: "https://93.184.216.34/robot/send?access_token=ding-token",
+      dingtalkKeyword: "renewlet",
+    }), {
+      ...baseMessage,
+      title: "Renewlet 订阅提醒",
+    }, "zh-CN");
+
+    const payload = objectBody(fetchMock.mock.calls[0]?.[1]);
+    expect(payload["markdown"]).toMatchObject({
+      text: "Renewlet 订阅提醒\n\n即将到期：\n- GitHub：2026-08-01\n\n2026-07-20 08:00 CST\n\nrenewlet",
+    });
+  });
+
+  it("applies DingTalk title and content templates while keeping unknown variables literal", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(`{"errcode":0,"errmsg":"ok"}`, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendDingTalk(settings({
+      dingtalkWebhookUrl: "https://93.184.216.34/robot/send?access_token=ding-token",
+      dingtalkKeyword: "安全词",
+      dingtalkTitleTemplate: "{brand} · {title} · {unknown}",
+      dingtalkContentTemplate: "{keyword}\n{title}\n{content}\n{timestamp}\n{itemCount}\n{unknown}",
+    }), {
+      ...baseMessage,
+      title: "订阅提醒",
+      content: "即将到期：\n- GitHub：{timestamp}",
+      items: [
+        { type: "renewal", name: "GitHub", price: 10, currency: "USD", status: "active", targetDate: "2026-08-01", reminderDays: 3 },
+        { type: "trial", name: "Figma", price: 12, currency: "USD", status: "trial", targetDate: "2026-08-02", reminderDays: 3 },
+      ],
+    }, "zh-CN");
+
+    const payload = objectBody(fetchMock.mock.calls[0]?.[1]);
+    expect(payload["markdown"]).toMatchObject({
+      title: "Renewlet · 订阅提醒 · {unknown}",
+      text: expect.stringContaining("安全词\n订阅提醒"),
+    });
+    const text = (payload["markdown"] as { text: string }).text;
+    expect(text.match(/安全词/g)).toHaveLength(1);
+    expect(text.endsWith("\n\nRenewlet")).toBe(true);
+    expect(JSON.stringify(payload["markdown"])).toContain("2");
+    expect(JSON.stringify(payload["markdown"])).toContain("{unknown}");
+    expect(JSON.stringify(payload["markdown"])).toContain("GitHub：{timestamp}");
   });
 
   it("signs text payloads and fails non-zero DingTalk business codes without leaking secrets", async () => {
@@ -113,7 +166,9 @@ describe("Cloudflare DingTalk notification sender", () => {
     expect(sentUrl.toString()).not.toContain("old");
     const payload = objectBody(init);
     expect(payload["msgtype"]).toBe("text");
-    expect(payload["text"]).toMatchObject({ content: expect.stringContaining("自定义关键词") });
+    expect(payload["text"]).toMatchObject({
+      content: "提醒\n\n正文\n\n2026-07-20 08:00 CST\n\nRenewlet · 自定义关键词",
+    });
 
     expect(caught).toBeInstanceOf(NotificationChannelError);
     if (caught instanceof NotificationChannelError) {

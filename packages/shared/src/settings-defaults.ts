@@ -43,6 +43,8 @@ export function createDefaultAppSettings(options: DefaultSettingsOptions = {}): 
     dingtalkSecret: "",
     dingtalkKeyword: "",
     dingtalkMessageType: "markdown",
+    dingtalkTitleTemplate: "",
+    dingtalkContentTemplate: "",
     wechatWebhookUrl: "",
     wechatMessageType: "text",
     wechatAddModeTag: false,

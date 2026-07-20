@@ -96,6 +96,8 @@ const SECRET_SETTING_KEYS = new Set<keyof AppSettings>([
   "dingtalkWebhookUrl",
   "dingtalkSecret",
   "dingtalkKeyword",
+  "dingtalkTitleTemplate",
+  "dingtalkContentTemplate",
   "wechatWebhookUrl",
   "wechatAtPhones",
   "smtpHost",

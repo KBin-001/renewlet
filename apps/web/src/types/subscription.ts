@@ -324,6 +324,10 @@ export interface AppSettings {
   dingtalkKeyword: string;
   /** 钉钉消息类型。 */
   dingtalkMessageType: ApiAppSettings["dingtalkMessageType"];
+  /** 钉钉消息标题模板。 */
+  dingtalkTitleTemplate: string;
+  /** 钉钉消息正文模板。 */
+  dingtalkContentTemplate: string;
   /** 企业微信机器人 Webhook URL。 */
   wechatWebhookUrl: string;
   /** 企业微信消息类型。 */

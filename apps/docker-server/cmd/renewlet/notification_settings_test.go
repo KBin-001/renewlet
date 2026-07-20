@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -70,5 +71,35 @@ func TestDingTalkMessageTypeDefaultsAndWriteValidation(t *testing.T) {
 	}
 	if _, err := mergeSettingsForWrite(defaultAppSettings(), json.RawMessage(`{"dingtalkMessageType":"actionCard"}`)); err == nil {
 		t.Fatal("expected unsupported DingTalk message type write to fail")
+	}
+}
+
+func TestDingTalkTemplateDefaultsAndWriteValidation(t *testing.T) {
+	settings := defaultAppSettings()
+	if settings.DingTalkTitleTemplate != "" || settings.DingTalkContentTemplate != "" {
+		t.Fatalf("expected empty DingTalk template defaults, got %#v", settings)
+	}
+
+	recovered, err := settingsFromValue(json.RawMessage(`{"dingtalkTitleTemplate":"标题","dingtalkContentTemplate":"正文","monthlyBudget":2333}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovered.DingTalkTitleTemplate != "标题" || recovered.DingTalkContentTemplate != "正文" || recovered.MonthlyBudget != 2333 {
+		t.Fatalf("expected DingTalk templates to survive settings recovery, got %#v", recovered)
+	}
+
+	recovered, err = settingsFromValue(json.RawMessage(`{"dingtalkTitleTemplate":"` + strings.Repeat("a", dingtalkTitleTemplateMaxRunes+1) + `","dingtalkContentTemplate":42,"monthlyBudget":2333}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovered.DingTalkTitleTemplate != "" || recovered.DingTalkContentTemplate != "" || recovered.MonthlyBudget != 2333 {
+		t.Fatalf("expected stored invalid DingTalk templates to recover only those fields, got %#v", recovered)
+	}
+
+	if _, err := mergeSettingsForWrite(defaultAppSettings(), json.RawMessage(`{"dingtalkTitleTemplate":"`+strings.Repeat("a", dingtalkTitleTemplateMaxRunes+1)+`"}`)); err == nil {
+		t.Fatal("expected overly long DingTalk title template write to fail")
+	}
+	if _, err := mergeSettingsForWrite(defaultAppSettings(), json.RawMessage(`{"dingtalkContentTemplate":"`+strings.Repeat("a", dingtalkContentTemplateMaxRunes+1)+`"}`)); err == nil {
+		t.Fatal("expected overly long DingTalk content template write to fail")
 	}
 }

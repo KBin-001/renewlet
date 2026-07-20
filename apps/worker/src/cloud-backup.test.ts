@@ -418,6 +418,8 @@ describe("Cloudflare cloud backup", () => {
       dingtalkWebhookUrl: "https://oapi.dingtalk.com/robot/send?access_token=ding-token",
       dingtalkSecret: "SECsecret",
       dingtalkKeyword: "自定义关键词",
+      dingtalkTitleTemplate: "自定义标题",
+      dingtalkContentTemplate: "自定义正文",
     });
 
     expect(sanitized).not.toHaveProperty("discordWebhookUrl");
@@ -427,10 +429,14 @@ describe("Cloudflare cloud backup", () => {
     expect(sanitized).not.toHaveProperty("dingtalkWebhookUrl");
     expect(sanitized).not.toHaveProperty("dingtalkSecret");
     expect(sanitized).not.toHaveProperty("dingtalkKeyword");
+    expect(sanitized).not.toHaveProperty("dingtalkTitleTemplate");
+    expect(sanitized).not.toHaveProperty("dingtalkContentTemplate");
     expect(JSON.stringify(sanitized)).not.toContain("secret");
     expect(JSON.stringify(sanitized)).not.toContain("push-token");
     expect(JSON.stringify(sanitized)).not.toContain("ding-token");
     expect(JSON.stringify(sanitized)).not.toContain("SECsecret");
+    expect(JSON.stringify(sanitized)).not.toContain("自定义标题");
+    expect(JSON.stringify(sanitized)).not.toContain("自定义正文");
   });
 
   it("returns a cloud backup provider error when manual snapshot provider is missing", async () => {

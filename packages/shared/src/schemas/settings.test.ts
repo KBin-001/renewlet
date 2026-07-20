@@ -40,6 +40,8 @@ describe("settings schema", () => {
     expect(defaults.dingtalkSecret).toBe("");
     expect(defaults.dingtalkKeyword).toBe("");
     expect(defaults.dingtalkMessageType).toBe("markdown");
+    expect(defaults.dingtalkTitleTemplate).toBe("");
+    expect(defaults.dingtalkContentTemplate).toBe("");
 
     const parsed = settingsUpdateBodySchema.parse({
       enabledChannels: ["dingtalk"],
@@ -47,12 +49,19 @@ describe("settings schema", () => {
       dingtalkSecret: "SECabcdef",
       dingtalkKeyword: "Renewlet",
       dingtalkMessageType: "text",
+      dingtalkTitleTemplate: "{brand} - {title}",
+      dingtalkContentTemplate: "{keyword}\n{content}\n{timestamp}",
     });
 
     expect(parsed.enabledChannels).toEqual(["dingtalk"]);
     expect(parsed.dingtalkMessageType).toBe("text");
+    expect(parsed.dingtalkTitleTemplate).toBe("{brand} - {title}");
+    expect(parsed.dingtalkContentTemplate).toBe("{keyword}\n{content}\n{timestamp}");
+    expect(settingsUpdateBodySchema.safeParse({ dingtalkTitleTemplate: "💡".repeat(500) }).success).toBe(true);
     expect(settingsUpdateBodySchema.safeParse({ dingtalkWebhookUrl: "http://oapi.dingtalk.com/robot/send?access_token=token" }).success).toBe(false);
     expect(settingsUpdateBodySchema.safeParse({ dingtalkMessageType: "actionCard" }).success).toBe(false);
     expect(settingsUpdateBodySchema.safeParse({ dingtalkKeyword: "x".repeat(101) }).success).toBe(false);
+    expect(settingsUpdateBodySchema.safeParse({ dingtalkTitleTemplate: "x".repeat(501) }).success).toBe(false);
+    expect(settingsUpdateBodySchema.safeParse({ dingtalkContentTemplate: "x".repeat(20_001) }).success).toBe(false);
   });
 });

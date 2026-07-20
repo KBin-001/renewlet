@@ -108,6 +108,117 @@ func TestSendDingTalkPostsMarkdownPayloadAndRequiresErrCodeZero(t *testing.T) {
 	}
 }
 
+func TestSendDingTalkAppliesTitleAndContentTemplates(t *testing.T) {
+	withSafeOutboundResolver(t)
+	var gotPayload dingTalkMarkdownRequest
+	restore := withNotificationHTTPClient(t, serverChanRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if err := json.NewDecoder(req.Body).Decode(&gotPayload); err != nil {
+			t.Fatal(err)
+		}
+		return serverChanTestResponse(http.StatusOK, `{"errcode":0,"errmsg":"ok"}`), nil
+	}))
+	defer restore()
+
+	settings := defaultAppSettings()
+	settings.DingTalkWebhookURL = "https://oapi.dingtalk.com/robot/send?access_token=ding-token"
+	settings.DingTalkKeyword = "安全词"
+	settings.DingTalkTitleTemplate = "{brand} · {title} · {unknown}"
+	settings.DingTalkContentTemplate = "{keyword}\n{title}\n{content}\n{timestamp}\n{itemCount}\n{unknown}"
+	err := sendDingTalk(settings, notificationMessage{
+		Title:     "订阅提醒",
+		Content:   "即将到期：\n- GitHub：{timestamp}",
+		Timestamp: "2026-07-20 08:00 CST",
+		Items:     []notificationContentItem{{}, {}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPayload.Markdown.Title != "Renewlet · 订阅提醒 · {unknown}" {
+		t.Fatalf("unexpected DingTalk title %#v", gotPayload.Markdown.Title)
+	}
+	if !strings.Contains(gotPayload.Markdown.Text, "安全词\n订阅提醒") || !strings.Contains(gotPayload.Markdown.Text, "2") {
+		t.Fatalf("expected rendered DingTalk template to include variables, got %#v", gotPayload.Markdown.Text)
+	}
+	if strings.Count(gotPayload.Markdown.Text, "安全词") != 1 || !strings.HasSuffix(gotPayload.Markdown.Text, "\n\nRenewlet") {
+		t.Fatalf("expected exact keyword to stay single and missing brand marker to be appended, got %#v", gotPayload.Markdown.Text)
+	}
+	if !strings.Contains(gotPayload.Markdown.Text, "{unknown}") {
+		t.Fatalf("expected unknown template variable to stay literal, got %#v", gotPayload.Markdown.Text)
+	}
+	if !strings.Contains(gotPayload.Markdown.Text, "GitHub：{timestamp}") {
+		t.Fatalf("expected placeholders inside message content to stay literal, got %#v", gotPayload.Markdown.Text)
+	}
+}
+
+func TestSendDingTalkEmptyTemplatesKeepDefaultPayloadOrder(t *testing.T) {
+	withSafeOutboundResolver(t)
+	var gotPayload dingTalkTextRequest
+	restore := withNotificationHTTPClient(t, serverChanRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if err := json.NewDecoder(req.Body).Decode(&gotPayload); err != nil {
+			t.Fatal(err)
+		}
+		return serverChanTestResponse(http.StatusOK, `{"errcode":0,"errmsg":"ok"}`), nil
+	}))
+	defer restore()
+
+	settings := defaultAppSettings()
+	settings.DingTalkWebhookURL = "https://oapi.dingtalk.com/robot/send?access_token=ding-token"
+	settings.DingTalkMessageType = dingtalkMessageTypeText
+	err := sendDingTalk(settings, notificationMessage{
+		Title:     "订阅提醒",
+		Content:   "即将到期：\n- GitHub：2026-08-01",
+		Timestamp: "2026-07-20 08:00 CST",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "订阅提醒\n\n即将到期：\n- GitHub：2026-08-01\n\n2026-07-20 08:00 CST\n\nRenewlet"
+	if gotPayload.Text.Content != want {
+		t.Fatalf("expected default DingTalk content order with footer marker, got %#v", gotPayload.Text.Content)
+	}
+}
+
+func TestEnsureDingTalkContentMarkersAppendsLowNoiseMarkers(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		keyword string
+		want    string
+	}{
+		{
+			name:    "lowercase keyword with existing brand stays at footer",
+			content: "Renewlet 订阅提醒\n\n正文",
+			keyword: "renewlet",
+			want:    "Renewlet 订阅提醒\n\n正文\n\nrenewlet",
+		},
+		{
+			name:    "exact brand keyword is not duplicated",
+			content: "Renewlet 订阅提醒\n\n正文",
+			keyword: "Renewlet",
+			want:    "Renewlet 订阅提醒\n\n正文",
+		},
+		{
+			name:    "existing custom keyword is not duplicated",
+			content: "提醒\n\n安全词\n正文",
+			keyword: "安全词",
+			want:    "提醒\n\n安全词\n正文\n\nRenewlet",
+		},
+		{
+			name:    "missing brand and keyword share one footer marker",
+			content: "提醒\n\n正文",
+			keyword: "自定义关键词",
+			want:    "提醒\n\n正文\n\nRenewlet · 自定义关键词",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ensureDingTalkContentMarkers(tt.content, tt.keyword); got != tt.want {
+				t.Fatalf("unexpected DingTalk markers:\nwant: %q\n got: %q", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestSendDingTalkSignsTextPayloadAndRedactsSecretsOnBusinessFailure(t *testing.T) {
 	withSafeOutboundResolver(t)
 	var gotURL string
@@ -130,7 +241,7 @@ func TestSendDingTalkSignsTextPayloadAndRedactsSecretsOnBusinessFailure(t *testi
 	if err == nil {
 		t.Fatal("expected DingTalk business error")
 	}
-	if gotPayload.MsgType != "text" || !strings.Contains(gotPayload.Text.Content, "自定义关键词") || !strings.Contains(gotPayload.Text.Content, "Renewlet") {
+	if gotPayload.MsgType != "text" || !strings.HasSuffix(gotPayload.Text.Content, "\n\nRenewlet · 自定义关键词") {
 		t.Fatalf("unexpected DingTalk text payload %#v", gotPayload)
 	}
 	if strings.Contains(gotURL, "old") || !strings.Contains(gotURL, "timestamp=") || !strings.Contains(gotURL, "sign=") {

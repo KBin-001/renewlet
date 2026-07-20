@@ -320,32 +320,87 @@ func sendDingTalk(settings appSettings, message notificationMessage) error {
 }
 
 func dingTalkRequestPayload(settings appSettings, message notificationMessage) interface{} {
-	content := dingTalkMessageContent(message, settings.DingTalkKeyword)
+	rendered := renderDingTalkNotification(settings, message)
 	if settings.DingTalkMessageType == dingtalkMessageTypeText {
 		return dingTalkTextRequest{
 			MsgType: dingtalkMessageTypeText,
-			Text:    dingTalkTextMessage{Content: content},
+			Text:    dingTalkTextMessage{Content: rendered.Content},
 		}
 	}
 	return dingTalkMarkdownRequest{
 		MsgType: dingtalkMessageTypeMarkdown,
 		Markdown: dingTalkMarkdownMessage{
-			Title: message.Title,
-			Text:  content,
+			Title: rendered.Title,
+			Text:  rendered.Content,
 		},
 	}
 }
 
-func dingTalkMessageContent(message notificationMessage, keyword string) string {
+type dingTalkRenderedNotification struct {
+	Title   string
+	Content string
+}
+
+func renderDingTalkNotification(settings appSettings, message notificationMessage) dingTalkRenderedNotification {
+	title := message.Title
+	if strings.TrimSpace(settings.DingTalkTitleTemplate) != "" {
+		renderedTitle := strings.TrimSpace(renderDingTalkTemplate(settings.DingTalkTitleTemplate, message, settings.DingTalkKeyword))
+		if renderedTitle != "" {
+			title = renderedTitle
+		}
+	}
 	content := buildTextMessage(message)
+	if strings.TrimSpace(settings.DingTalkContentTemplate) != "" {
+		renderedContent := strings.TrimSpace(renderDingTalkTemplate(settings.DingTalkContentTemplate, message, settings.DingTalkKeyword))
+		if renderedContent != "" {
+			content = renderedContent
+		}
+	}
+	return dingTalkRenderedNotification{
+		Title:   title,
+		Content: ensureDingTalkContentMarkers(content, settings.DingTalkKeyword),
+	}
+}
+
+func renderDingTalkTemplate(template string, message notificationMessage, keyword string) string {
+	// 钉钉模板只改官方 payload 的文本字段；raw JSON body 会绕开 msgtype/errcode 约束并重现交付误判。
+	return strings.NewReplacer(
+		"{brand}", "Renewlet",
+		"{keyword}", strings.TrimSpace(keyword),
+		"{title}", message.Title,
+		"{content}", message.Content,
+		"{timestamp}", message.Timestamp,
+		"{itemCount}", fmt.Sprintf("%d", len(message.Items)),
+	).Replace(template)
+}
+
+func ensureDingTalkContentMarkers(content string, keyword string) string {
+	// 钉钉关键词校验只看可见正文，不能藏在 title 或不可见字符里；缺失标记放末尾，避免抢走通知第一屏。
+	markers := []string{}
 	if !strings.Contains(content, "Renewlet") {
-		content = "Renewlet\n\n" + content
+		markers = append(markers, "Renewlet")
 	}
 	keyword = strings.TrimSpace(keyword)
-	if keyword != "" && !strings.Contains(content, keyword) {
-		content = keyword + "\n\n" + content
+	if keyword != "" && !strings.Contains(content, keyword) && !dingTalkMarkerQueued(markers, keyword) {
+		markers = append(markers, keyword)
 	}
-	return content
+	if len(markers) == 0 {
+		return content
+	}
+	trimmedContent := strings.TrimRight(content, " \t\r\n")
+	if trimmedContent == "" {
+		return strings.Join(markers, " · ")
+	}
+	return trimmedContent + "\n\n" + strings.Join(markers, " · ")
+}
+
+func dingTalkMarkerQueued(markers []string, marker string) bool {
+	for _, existing := range markers {
+		if existing == marker {
+			return true
+		}
+	}
+	return false
 }
 
 func signedDingTalkWebhookURL(endpoint string, secret string, now time.Time) (string, error) {

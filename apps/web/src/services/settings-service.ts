@@ -1,5 +1,11 @@
 import { apiFetch } from "@/lib/api-client";
-import { settingsResponseSchema, settingsUpdateBodySchema, type ApiAppSettings } from "@/lib/api/schemas/settings";
+import {
+  DINGTALK_CONTENT_TEMPLATE_MAX_LENGTH,
+  DINGTALK_TITLE_TEMPLATE_MAX_LENGTH,
+  settingsResponseSchema,
+  settingsUpdateBodySchema,
+  type ApiAppSettings,
+} from "@/lib/api/schemas/settings";
 import { getApiLocale } from "@/i18n/api-locale";
 import { translate } from "@/i18n/messages";
 import { getSystemTimeZone } from "@/lib/time/time-zone";
@@ -47,9 +53,11 @@ export function normalizeSettings(value: unknown): AppSettings {
 
 function normalizeStoredSettingsPatch(value: unknown): unknown {
   if (!isRecord(value)) return value;
-  // 写入边界会拒绝非法格式；这里仅修复历史/手改 settings JSON，避免单个坏枚举拖垮整份设置。
+  // 写入边界会拒绝非法格式；这里仅修复历史/手改 settings JSON，避免单个坏字段拖垮整份设置。
   const telegramMessageFormat = value["telegramMessageFormat"];
   const dingtalkMessageType = value["dingtalkMessageType"];
+  const dingtalkTitleTemplate = value["dingtalkTitleTemplate"];
+  const dingtalkContentTemplate = value["dingtalkContentTemplate"];
   return {
     ...value,
     ...(
@@ -62,7 +70,21 @@ function normalizeStoredSettingsPatch(value: unknown): unknown {
         ? {}
         : { dingtalkMessageType: "markdown" }
     ),
+    ...(
+      typeof dingtalkTitleTemplate === "string" && codePointLength(dingtalkTitleTemplate) <= DINGTALK_TITLE_TEMPLATE_MAX_LENGTH
+        ? {}
+        : { dingtalkTitleTemplate: "" }
+    ),
+    ...(
+      typeof dingtalkContentTemplate === "string" && codePointLength(dingtalkContentTemplate) <= DINGTALK_CONTENT_TEMPLATE_MAX_LENGTH
+        ? {}
+        : { dingtalkContentTemplate: "" }
+    ),
   };
+}
+
+function codePointLength(value: string): number {
+  return Array.from(value).length;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
